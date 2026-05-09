@@ -1,25 +1,15 @@
-/**
- * logger.js
- *
- * Structured logger that outputs to both console (with colors) and a log file.
- * Uses chalk for terminal colors (CommonJS v4 compatible).
- */
-
 const fs   = require("fs");
 const path = require("path");
 
-// Ensure logs directory exists
 const logsDir = path.join(__dirname, "../logs");
 if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
 
 const logFile = path.join(logsDir, "requests.log");
 
-// We lazy-require chalk so the rest of the app works even without color support
 let chalk;
 try {
   chalk = require("chalk");
 } catch {
-  // Fallback: no-op chalk
   const id = (s) => s;
   chalk = {
     green: id, yellow: id, red: id, cyan: id,
@@ -48,7 +38,6 @@ function write(level, message, meta = {}) {
     ? "  " + JSON.stringify(meta)
     : "";
 
-  // Console output (colored)
   console.log(
     chalk.gray(`[${ts}]`) +
     " " +
@@ -58,9 +47,8 @@ function write(level, message, meta = {}) {
     chalk.gray(metaStr)
   );
 
-  // File output (plain JSON-lines)
   const line = JSON.stringify({ ts, level, message, ...meta }) + "\n";
-  fs.appendFile(logFile, line, () => {});   // non-blocking fire-and-forget
+  fs.appendFile(logFile, line, () => {});
 }
 
 const logger = {

@@ -1,18 +1,3 @@
-/**
- * metrics.js
- *
- * Collects and aggregates load balancer metrics in memory.
- *
- * Tracks:
- *   - Total requests routed
- *   - Requests per node
- *   - Requests per unique IP
- *   - Rate-limited request count
- *   - Routed-to-fallback count (when preferred node is down)
- *   - Per-node average simulated response latency
- *   - Uptime since server start
- */
-
 const logger = require("./logger");
 
 class MetricsCollector {
@@ -21,19 +6,12 @@ class MetricsCollector {
     this.totalRequests     = 0;
     this.rateLimitedCount  = 0;
     this.fallbackCount     = 0;
-    this.perNode           = {};   // node → { count, totalLatency }
-    this.perIP             = {};   // ip   → count
-    this.recentRequests    = [];   // last 50 routed requests (ring buffer)
+    this.perNode          = {};
+    this.perIP            = {};
+    this.recentRequests   = [];
     this.MAX_RECENT        = 50;
   }
 
-  /**
-   * Record a successfully routed request.
-   * @param {string} ip
-   * @param {string} node
-   * @param {number} latencyMs
-   * @param {boolean} isFallback
-   */
   recordRoute(ip, node, latencyMs = 0, isFallback = false) {
     this.totalRequests++;
 
@@ -47,7 +25,6 @@ class MetricsCollector {
 
     if (isFallback) this.fallbackCount++;
 
-    // Ring buffer for recent request log
     this.recentRequests.push({
       ts:         new Date().toISOString(),
       ip,
@@ -60,13 +37,11 @@ class MetricsCollector {
     }
   }
 
-  /** Record a rate-limited rejection */
   recordRateLimited(ip) {
     this.rateLimitedCount++;
     logger.metrics("Rate limited request recorded", { ip });
   }
 
-  /** Return full metrics snapshot */
   snapshot() {
     const uptimeSec  = Math.floor((Date.now() - this.startTime) / 1000);
     const nodeStats  = Object.entries(this.perNode).map(([name, d]) => ({
@@ -89,11 +64,10 @@ class MetricsCollector {
       uniqueIPs:        Object.keys(this.perIP).length,
       nodeStats,
       topIPs:           this._topN(this.perIP, 5),
-      recentRequests:   [...this.recentRequests].reverse(), // newest first
+      recentRequests:   [...this.recentRequests].reverse(),
     };
   }
 
-  /** Reset all counters */
   reset() {
     this.totalRequests    = 0;
     this.rateLimitedCount = 0;
@@ -103,8 +77,6 @@ class MetricsCollector {
     this.recentRequests   = [];
     logger.metrics("Metrics reset");
   }
-
-  // ---------- PRIVATE ----------
 
   _topN(map, n) {
     return Object.entries(map)

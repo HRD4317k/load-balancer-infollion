@@ -1,19 +1,8 @@
-/**
- * simulate.js
- *
- * Standalone simulation script — reproduces the original task spec
- * (generateRandomIP + identifyNode + LoadBalancer) while showcasing
- * all new features: consistent hashing, weighted routing, health checks.
- *
- * Run with:   node simulate.js
- */
-
 require("dotenv").config();
 
 const { LoadBalancer, generateRandomIP } = require("./src/loadBalancer");
 const logger = require("./src/logger");
 
-// ─── Demo: consistent hashing verification ───────────────────────────────
 function demoConsistentHashing(lb) {
   logger.info("\n━━━ DEMO 1: Consistent Hashing ━━━");
   logger.info("Same IP should always hit the same node, even after topology changes.\n");
@@ -24,7 +13,6 @@ function demoConsistentHashing(lb) {
     generateRandomIP(),
   ];
 
-  // First pass
   logger.info("Pass 1 (3 nodes — A, B, C):");
   const pass1 = {};
   for (const ip of testIPs) {
@@ -32,7 +20,6 @@ function demoConsistentHashing(lb) {
     pass1[ip] = node;
   }
 
-  // Add a new node
   lb.addNode("Node-D", 1);
   logger.info("\nPass 2 (4 nodes — A, B, C, D): same IPs:");
   const pass2 = {};
@@ -50,7 +37,6 @@ function demoConsistentHashing(lb) {
   lb.removeNode("Node-D");
 }
 
-// ─── Demo: health check fallback ─────────────────────────────────────────
 function demoHealthFallback(lb) {
   logger.info("\n━━━ DEMO 2: Health Check Fallback ━━━");
   logger.info("Take Node-A offline; traffic should automatically re-route.\n");
@@ -67,7 +53,6 @@ function demoHealthFallback(lb) {
   logger.info("\nNode-A restored.");
 }
 
-// ─── Demo: rate limiting ──────────────────────────────────────────────────
 function demoRateLimit(lb) {
   logger.info("\n━━━ DEMO 3: Rate Limiting ━━━");
   logger.info("Flood a single IP beyond the limit.\n");
@@ -83,7 +68,6 @@ function demoRateLimit(lb) {
   }
 }
 
-// ─── Main simulation (original task spec) ─────────────────────────────────
 function simulateTraffic(lb, requestCount = 10) {
   logger.info(`\n━━━ Simulating ${requestCount} random requests (original task) ━━━`);
   for (let i = 0; i < requestCount; i++) {
@@ -92,7 +76,6 @@ function simulateTraffic(lb, requestCount = 10) {
   }
 }
 
-// ─── Print final metrics ──────────────────────────────────────────────────
 function printMetrics(lb) {
   logger.info("\n━━━ Final Metrics ━━━");
   const snap = lb.metrics.snapshot();
@@ -107,17 +90,15 @@ function printMetrics(lb) {
 }
 
 
-// ─── ENTRY POINT ─────────────────────────────────────────────────────────
 (function main() {
   logger.info("═══════════════════════════════════════════════");
   logger.info("  Infollion Load Balancer — Full Demo");
   logger.info("═══════════════════════════════════════════════");
 
   const lb = new LoadBalancer();
-  // Don't start health checker auto-timer in CLI demo (keep it clean)
   // lb.start();
 
-  simulateTraffic(lb, 10);   // ← original task spec
+  simulateTraffic(lb, 10);
   demoConsistentHashing(lb);
   demoHealthFallback(lb);
   demoRateLimit(lb);

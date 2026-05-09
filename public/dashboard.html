@@ -32,7 +32,6 @@
       overflow-x: hidden;
     }
 
-    /* ── Scanline overlay ── */
     body::before {
       content: '';
       position: fixed; inset: 0;
@@ -43,7 +42,6 @@
       pointer-events: none; z-index: 999;
     }
 
-    /* ── Header ── */
     header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 20px 32px;
@@ -99,10 +97,8 @@
     }
     .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-    /* ── Layout ── */
     main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
 
-    /* ── Section title ── */
     .section-title {
       font-family: 'JetBrains Mono', monospace;
       font-size: 11px; letter-spacing: 0.2em;
@@ -111,7 +107,6 @@
     }
     .section-title span { color: var(--accent); }
 
-    /* ── KPI row ── */
     .kpi-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -151,7 +146,6 @@
     .kpi-value.cyan   { color: var(--accent); }
     .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 6px; }
 
-    /* ── Two-col layout ── */
     .two-col {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -160,7 +154,6 @@
     }
     @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
 
-    /* ── Card ── */
     .card {
       background: var(--card);
       border: 1px solid var(--border);
@@ -180,7 +173,6 @@
       border: 1px solid rgba(0,212,255,0.2);
     }
 
-    /* ── Node cards ── */
     .node-list { display: flex; flex-direction: column; gap: 12px; }
     .node-row {
       background: var(--surface);
@@ -216,7 +208,6 @@
     .bar-fill.cyan   { background: linear-gradient(90deg, var(--accent), #0284c7); }
     .bar-fill.purple { background: linear-gradient(90deg, var(--accent2), #6d28d9); }
 
-    /* ── Recent requests table ── */
     .req-table { width: 100%; border-collapse: collapse; font-size: 12px; }
     .req-table th {
       text-align: left; padding: 8px 10px;
@@ -243,7 +234,6 @@
     .tag.c { color: #10b981; }
     .tag.d { color: #f59e0b; }
 
-    /* ── Actions panel ── */
     .actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .action-btn {
       background: transparent;
@@ -277,7 +267,6 @@
     }
     .input-row button:hover { opacity: 0.85; }
 
-    /* ── Toast ── */
     #toast {
       position: fixed; bottom: 24px; right: 24px;
       background: var(--card); border: 1px solid var(--accent);
@@ -290,10 +279,8 @@
     }
     #toast.show { transform: translateY(0); opacity: 1; }
 
-    /* ── Empty state ── */
     .empty { text-align: center; padding: 24px; color: var(--muted); font-size: 13px; }
 
-    /* ── Scrollbar ── */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -318,7 +305,6 @@
 
 <main>
 
-  <!-- KPIs -->
   <div class="section-title"><span>//</span> KEY METRICS</div>
   <div class="kpi-grid">
     <div class="kpi-card">
@@ -353,10 +339,8 @@
     </div>
   </div>
 
-  <!-- Nodes + Recent Requests -->
   <div class="two-col">
 
-    <!-- Node Status -->
     <div class="card">
       <div class="card-title">
         Node Health &amp; Distribution
@@ -367,7 +351,6 @@
       </div>
     </div>
 
-    <!-- Recent Requests -->
     <div class="card">
       <div class="card-title">
         Recent Requests
@@ -392,10 +375,8 @@
 
   </div>
 
-  <!-- Controls + Top IPs -->
   <div class="two-col">
 
-    <!-- Controls -->
     <div class="card">
       <div class="card-title">Controls</div>
 
@@ -436,7 +417,6 @@
       </div>
     </div>
 
-    <!-- Top IPs -->
     <div class="card">
       <div class="card-title">Top IPs by Request Count</div>
       <table class="req-table">
@@ -458,12 +438,10 @@
 <script>
   let totalForShare = 0;
 
-  // ── Fetch helpers ──
   async function get(url)  { const r = await fetch(url);          return r.json(); }
   async function post(url, body={}) { const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}); return r.json(); }
   async function del(url)  { const r = await fetch(url, {method:'DELETE'}); return r.json(); }
 
-  // ── Toast ──
   function toast(msg, isErr=false) {
     const el = document.getElementById('toast');
     el.textContent = msg;
@@ -472,13 +450,11 @@
     setTimeout(() => el.classList.remove('show'), 3000);
   }
 
-  // ── Node colour ──
   function nodeTag(name) {
     const c = {A:'a',B:'b',C:'c',D:'d'}[name?.split('-')[1]] || '';
     return `<span class="tag ${c}">${name}</span>`;
   }
 
-  // ── Render nodes ──
   function renderNodes(nodes, health) {
     const list = document.getElementById('node-list');
     const healthMap = {};
@@ -536,7 +512,6 @@
     }).join('');
   }
 
-  // ── Render recent requests ──
   function renderRecent(reqs) {
     const tbody = document.getElementById('req-tbody');
     if (!reqs || !reqs.length) {
@@ -553,7 +528,6 @@
     `).join('');
   }
 
-  // ── Render top IPs ──
   function renderTopIPs(topIPs, total) {
     const tbody = document.getElementById('top-ips-tbody');
     if (!topIPs || !topIPs.length) {
@@ -571,7 +545,6 @@
     }).join('');
   }
 
-  // ── Fetch all data ──
   async function fetchAll() {
     try {
       const [status, metrics, nodesRes] = await Promise.all([
@@ -589,7 +562,6 @@
       document.getElementById('kpi-ring').textContent        = nodesRes.ringSize ?? '—';
       document.getElementById('uptime-display').textContent  = `uptime: ${m.uptime?.human||'—'}`;
 
-      // Merge node info with metrics nodeStats
       const nodeStats = {};
       (m.nodeStats||[]).forEach(n => nodeStats[n.node] = n);
 
@@ -608,7 +580,6 @@
     }
   }
 
-  // ── Actions ──
   async function sendRoute() {
     const res = await post('/route');
     if (res.success) toast(`✅ ${res.ip} → ${res.node}${res.fallback?' (fallback)':''}`);
@@ -666,7 +637,6 @@
     fetchAll();
   }
 
-  // ── Auto-refresh every 5s ──
   fetchAll();
   setInterval(fetchAll, 5000);
 </script>

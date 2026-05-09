@@ -21,21 +21,21 @@ Then open: **http://localhost:3000/dashboard**
 
 ```
 load-balancer/
-├── server.js                  # Express HTTP server + all REST endpoints
-├── simulate.js                # CLI demo (original task spec + feature demos)
+├── server.js
+├── simulate.js
 ├── src/
-│   ├── loadBalancer.js        # Main orchestrator — ties all modules together
-│   ├── consistentHash.js      # Consistent Hash Ring (core algorithm)
-│   ├── healthCheck.js         # Periodic node health monitoring
-│   ├── rateLimiter.js         # Per-IP token-bucket rate limiter
-│   ├── metrics.js             # Request metrics collector
-│   └── logger.js              # Structured logger (console + file)
+│   ├── loadBalancer.js
+│   ├── consistentHash.js
+│   ├── healthCheck.js
+│   ├── rateLimiter.js
+│   ├── metrics.js
+│   └── logger.js
 ├── public/
-│   └── dashboard.html         # Live metrics dashboard (auto-refreshes)
+│   └── dashboard.html
 ├── logs/
-│   └── requests.log           # Structured JSON log file (auto-created)
-├── .env                       # Configuration
-├── setup.sh                   # One-shot setup script
+│   └── requests.log
+├── .env
+├── setup.sh
 └── package.json
 ```
 
@@ -87,20 +87,16 @@ Ring (0 ────────────────────────
 ```env
 PORT=3000
 
-# Consistent Hashing
-VIRTUAL_NODES=150           # Higher = better distribution, more memory
+VIRTUAL_NODES=150
 
-# Rate Limiting
-RATE_LIMIT_WINDOW_MS=60000  # 1 minute window
-RATE_LIMIT_MAX=10           # Max requests per IP per window
+RATE_LIMIT_WINDOW_MS=60000
+RATE_LIMIT_MAX=10
 
-# Health Checks
-HEALTH_CHECK_INTERVAL=15000 # Every 15 seconds
-HEALTH_FAIL_THRESHOLD=2     # Consecutive failures before marking unhealthy
-HEALTH_RECOVER_THRESHOLD=1  # Successes needed to recover
+HEALTH_CHECK_INTERVAL=15000
+HEALTH_FAIL_THRESHOLD=2
+HEALTH_RECOVER_THRESHOLD=1
 
-# Simulation
-SIMULATE_FAILURE=false       # true = 50% failure rate (stress testing)
+SIMULATE_FAILURE=false
 ```
 
 ---
@@ -142,41 +138,32 @@ SIMULATE_FAILURE=false       # true = 50% failure rate (stress testing)
 ## 🧪 Quick Postman / curl Demo
 
 ```bash
-# 1. Route a request (auto IP)
 curl -X POST http://localhost:3000/route
 
-# 2. Route a specific IP (always hits the same node)
 curl -X POST http://localhost:3000/route \
   -H "Content-Type: application/json" \
   -d '{"ip":"192.168.1.100"}'
 
-# 3. Same IP again → same node (consistent hashing!)
 curl -X POST http://localhost:3000/route \
   -H "Content-Type: application/json" \
   -d '{"ip":"192.168.1.100"}'
 
-# 4. Simulate 20 requests
 curl -X POST http://localhost:3000/simulate \
   -H "Content-Type: application/json" \
   -d '{"count":20}'
 
-# 5. Kill Node-A
 curl -X PATCH http://localhost:3000/health/Node-A \
   -H "Content-Type: application/json" \
   -d '{"status":"unhealthy"}'
 
-# 6. Route again → watch fallback kick in
 curl -X POST http://localhost:3000/route
 
-# 7. Add a weighted node
 curl -X POST http://localhost:3000/nodes \
   -H "Content-Type: application/json" \
   -d '{"name":"Node-D","weight":5}'
 
-# 8. View metrics
 curl http://localhost:3000/metrics | python3 -m json.tool
 
-# 9. Trigger rate limit (run 11+ times quickly)
 for i in {1..12}; do
   curl -X POST http://localhost:3000/route \
     -H "Content-Type: application/json" \
@@ -213,9 +200,9 @@ Runs 4 demos in sequence:
 ## 🔧 Development
 
 ```bash
-npm run dev     # nodemon (auto-restart on change)
-npm start       # production
-npm run simulate # CLI demo
+npm run dev
+npm start
+npm run simulate
 ```
 
 ---
