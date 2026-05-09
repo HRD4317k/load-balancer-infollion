@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Load Balancer Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Space+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #080c12;
+      --surface:    #0d1320;
+      --card:       #111825;
+      --border:     #1e2d42;
+      --accent:     #00d4ff;
+      --accent2:    #7c3aed;
+      --green:      #10b981;
+      --red:        #ef4444;
+      --yellow:     #f59e0b;
+      --text:       #e2e8f0;
+      --muted:      #64748b;
+      --glow:       rgba(0, 212, 255, 0.12);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Grotesk', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Scanline overlay ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(
+        0deg, transparent, transparent 2px,
+        rgba(0,212,255,0.015) 2px, rgba(0,212,255,0.015) 4px
+      );
+      pointer-events: none; z-index: 999;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 32px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(90deg, rgba(0,212,255,0.04) 0%, transparent 60%);
+      position: sticky; top: 0; z-index: 10;
+      backdrop-filter: blur(8px);
+    }
+    .logo {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .logo-icon {
+      width: 36px; height: 36px;
+      border: 2px solid var(--accent);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px; color: var(--accent);
+      box-shadow: 0 0 16px var(--glow);
+    }
+    .logo h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.05em; }
+    .logo span { font-size: 11px; color: var(--muted); font-weight: 300; letter-spacing: 0.1em; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .live-badge {
+      display: flex; align-items: center; gap: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; color: var(--green);
+      letter-spacing: 0.1em;
+    }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--green);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16,185,129,0.6); }
+      50%       { opacity: 0.7; box-shadow: 0 0 0 6px rgba(16,185,129,0); }
+    }
+    #uptime-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; color: var(--muted);
+    }
+    .refresh-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      transition: all 0.2s;
+    }
+    .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Layout ── */
+    main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+
+    /* ── Section title ── */
+    .section-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; letter-spacing: 0.2em;
+      color: var(--muted); text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .section-title span { color: var(--accent); }
+
+    /* ── KPI row ── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .kpi-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s, transform 0.2s;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--accent), transparent);
+      opacity: 0.6;
+    }
+    .kpi-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .kpi-label {
+      font-size: 11px; color: var(--muted);
+      letter-spacing: 0.08em; text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .kpi-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 32px; font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+    }
+    .kpi-value.green  { color: var(--green); }
+    .kpi-value.red    { color: var(--red); }
+    .kpi-value.yellow { color: var(--yellow); }
+    .kpi-value.cyan   { color: var(--accent); }
+    .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+    /* ── Two-col layout ── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+    /* ── Card ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px;
+    }
+    .card-title {
+      font-size: 13px; font-weight: 600; margin-bottom: 18px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-title .pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; padding: 2px 8px;
+      border-radius: 20px;
+      background: rgba(0,212,255,0.1);
+      color: var(--accent);
+      border: 1px solid rgba(0,212,255,0.2);
+    }
+
+    /* ── Node cards ── */
+    .node-list { display: flex; flex-direction: column; gap: 12px; }
+    .node-row {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      transition: border-color 0.2s;
+    }
+    .node-row:hover { border-color: var(--accent); }
+    .node-row.unhealthy { border-color: rgba(239,68,68,0.4); }
+    .node-top {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px;
+    }
+    .node-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px; font-weight: 600; color: var(--accent);
+    }
+    .status-badge {
+      font-size: 11px; padding: 3px 10px; border-radius: 20px;
+      font-family: 'JetBrains Mono', monospace; letter-spacing: 0.05em;
+    }
+    .status-badge.healthy   { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+    .status-badge.unhealthy { background: rgba(239,68,68,0.15); color: var(--red);   border: 1px solid rgba(239,68,68,0.3); }
+    .node-meta { display: flex; gap: 18px; flex-wrap: wrap; }
+    .meta-item { font-size: 12px; color: var(--muted); }
+    .meta-item span { color: var(--text); font-weight: 500; margin-left: 4px; }
+    .bar-wrap { margin-top: 10px; }
+    .bar-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .bar-track { background: var(--border); border-radius: 4px; height: 5px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+    .bar-fill.green  { background: linear-gradient(90deg, var(--green), #059669); }
+    .bar-fill.cyan   { background: linear-gradient(90deg, var(--accent), #0284c7); }
+    .bar-fill.purple { background: linear-gradient(90deg, var(--accent2), #6d28d9); }
+
+    /* ── Recent requests table ── */
+    .req-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .req-table th {
+      text-align: left; padding: 8px 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--muted); border-bottom: 1px solid var(--border);
+    }
+    .req-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(30,45,66,0.5);
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text);
+    }
+    .req-table tr:last-child td { border-bottom: none; }
+    .req-table tr:hover td { background: rgba(0,212,255,0.03); }
+    .tag {
+      display: inline-block; font-size: 10px; padding: 2px 7px;
+      border-radius: 4px; font-family: 'JetBrains Mono', monospace;
+    }
+    .tag.fallback { background: rgba(245,158,11,0.15); color: var(--yellow); }
+    .tag.normal   { background: rgba(16,185,129,0.1);  color: var(--green); }
+    .tag.a { color: #00d4ff; }
+    .tag.b { color: #7c3aed; }
+    .tag.c { color: #10b981; }
+    .tag.d { color: #f59e0b; }
+
+    /* ── Actions panel ── */
+    .actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .action-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12px; font-family: 'JetBrains Mono', monospace;
+      cursor: pointer; transition: all 0.2s;
+      text-align: left;
+    }
+    .action-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--glow); }
+    .action-btn.danger:hover { border-color: var(--red); color: var(--red); }
+    .action-btn.success:hover { border-color: var(--green); color: var(--green); }
+    .action-btn .btn-label { display: block; font-size: 10px; color: var(--muted); margin-bottom: 3px; letter-spacing: 0.1em; text-transform: uppercase; }
+
+    .input-row { display: flex; gap: 8px; margin-top: 12px; }
+    .input-row input {
+      flex: 1; background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); padding: 9px 12px; border-radius: 7px;
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      outline: none; transition: border-color 0.2s;
+    }
+    .input-row input:focus { border-color: var(--accent); }
+    .input-row input::placeholder { color: var(--muted); }
+    .input-row button {
+      background: var(--accent); color: var(--bg);
+      border: none; padding: 9px 16px; border-radius: 7px;
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      font-weight: 700; cursor: pointer; transition: opacity 0.2s;
+    }
+    .input-row button:hover { opacity: 0.85; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--card); border: 1px solid var(--accent);
+      color: var(--text); padding: 12px 18px;
+      border-radius: 8px; font-size: 13px;
+      font-family: 'JetBrains Mono', monospace;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+      transform: translateY(100px); opacity: 0;
+      transition: all 0.3s; z-index: 100;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+
+    /* ── Empty state ── */
+    .empty { text-align: center; padding: 24px; color: var(--muted); font-size: 13px; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">LB</div>
+    <div>
+      <h1>Load Balancer</h1>
+      <span>Metrics Dashboard · Infollion Task</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live-badge"><div class="dot"></div>LIVE</div>
+    <div id="uptime-display">uptime: —</div>
+    <button class="refresh-btn" onclick="fetchAll()">↺ Refresh</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- KPIs -->
+  <div class="section-title"><span>//</span> KEY METRICS</div>
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Total Requests</div>
+      <div class="kpi-value cyan" id="kpi-total">—</div>
+      <div class="kpi-sub">since server start</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Rate Limited</div>
+      <div class="kpi-value yellow" id="kpi-ratelimited">—</div>
+      <div class="kpi-sub">blocked requests</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Fallback Used</div>
+      <div class="kpi-value yellow" id="kpi-fallback">—</div>
+      <div class="kpi-sub">re-routed due to health</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Unique IPs</div>
+      <div class="kpi-value green" id="kpi-ips">—</div>
+      <div class="kpi-sub">distinct clients</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Active Nodes</div>
+      <div class="kpi-value" id="kpi-nodes">—</div>
+      <div class="kpi-sub">in ring</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Ring Size</div>
+      <div class="kpi-value" id="kpi-ring">—</div>
+      <div class="kpi-sub">virtual positions</div>
+    </div>
+  </div>
+
+  <!-- Nodes + Recent Requests -->
+  <div class="two-col">
+
+    <!-- Node Status -->
+    <div class="card">
+      <div class="card-title">
+        Node Health &amp; Distribution
+        <span class="pill" id="healthy-count">0 healthy</span>
+      </div>
+      <div class="node-list" id="node-list">
+        <div class="empty">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Recent Requests -->
+    <div class="card">
+      <div class="card-title">
+        Recent Requests
+        <span class="pill">last 15</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="req-table">
+          <thead>
+            <tr>
+              <th>IP Address</th>
+              <th>Node</th>
+              <th>Latency</th>
+              <th>Type</th>
+            </tr>
+          </thead>
+          <tbody id="req-tbody">
+            <tr><td colspan="4" class="empty">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Controls + Top IPs -->
+  <div class="two-col">
+
+    <!-- Controls -->
+    <div class="card">
+      <div class="card-title">Controls</div>
+
+      <div class="actions-grid">
+        <button class="action-btn" onclick="sendRoute()">
+          <span class="btn-label">Route Request</span>
+          POST /route (random IP)
+        </button>
+        <button class="action-btn success" onclick="simulate()">
+          <span class="btn-label">Simulate Traffic</span>
+          POST /simulate (10 req)
+        </button>
+        <button class="action-btn danger" onclick="resetMetrics()">
+          <span class="btn-label">Reset Metrics</span>
+          POST /metrics/reset
+        </button>
+        <button class="action-btn" onclick="fetchAll()">
+          <span class="btn-label">Refresh All</span>
+          GET /status
+        </button>
+      </div>
+
+      <div style="margin-top:20px;">
+        <div class="kpi-label" style="margin-bottom:8px;">Add Node (name, weight 1-10)</div>
+        <div class="input-row">
+          <input id="new-node-name"   placeholder="Node-D" />
+          <input id="new-node-weight" placeholder="1" style="width:60px;flex:none;" type="number" min="1" max="10" />
+          <button onclick="addNode()">Add</button>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;">
+        <div class="kpi-label" style="margin-bottom:8px;">Route Specific IP</div>
+        <div class="input-row">
+          <input id="route-ip" placeholder="e.g. 192.168.1.100" />
+          <button onclick="routeIP()">Route</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top IPs -->
+    <div class="card">
+      <div class="card-title">Top IPs by Request Count</div>
+      <table class="req-table">
+        <thead>
+          <tr><th>#</th><th>IP Address</th><th>Requests</th><th>Share</th></tr>
+        </thead>
+        <tbody id="top-ips-tbody">
+          <tr><td colspan="4" class="empty">No data yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+  let totalForShare = 0;
+
+  // ── Fetch helpers ──
+  async function get(url)  { const r = await fetch(url);          return r.json(); }
+  async function post(url, body={}) { const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}); return r.json(); }
+  async function del(url)  { const r = await fetch(url, {method:'DELETE'}); return r.json(); }
+
+  // ── Toast ──
+  function toast(msg, isErr=false) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.style.borderColor = isErr ? 'var(--red)' : 'var(--accent)';
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
+  // ── Node colour ──
+  function nodeTag(name) {
+    const c = {A:'a',B:'b',C:'c',D:'d'}[name?.split('-')[1]] || '';
+    return `<span class="tag ${c}">${name}</span>`;
+  }
+
+  // ── Render nodes ──
+  function renderNodes(nodes, health) {
+    const list = document.getElementById('node-list');
+    const healthMap = {};
+    (health||[]).forEach(h => healthMap[h.name] = h);
+
+    const healthyCount = (health||[]).filter(h=>h.status==='healthy').length;
+    document.getElementById('healthy-count').textContent = `${healthyCount} healthy`;
+
+    if (!nodes || !nodes.length) {
+      list.innerHTML = '<div class="empty">No nodes registered</div>';
+      return;
+    }
+
+    totalForShare = nodes.reduce((s,n) => s + (n.requests||0), 0) || 1;
+
+    list.innerHTML = nodes.map(n => {
+      const h = healthMap[n.name] || {};
+      const healthy = (h.status||'healthy') === 'healthy';
+      const pct = n.percentage ?? 0;
+      const colors = {A:'cyan', B:'purple', C:'green', D:'yellow'};
+      const clr = colors[n.name?.split('-')[1]] || 'cyan';
+      return `
+        <div class="node-row ${healthy ? '' : 'unhealthy'}">
+          <div class="node-top">
+            <div class="node-name">${n.name}</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button onclick="toggleHealth('${n.name}', '${healthy?'unhealthy':'healthy'}')"
+                style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:3px 10px;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;">
+                ${healthy ? '⬇ Kill' : '⬆ Revive'}
+              </button>
+              <button onclick="removeNode('${n.name}')"
+                style="background:transparent;border:1px solid rgba(239,68,68,0.3);color:var(--red);padding:3px 10px;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;">
+                ✕ Remove
+              </button>
+              <span class="status-badge ${healthy ? 'healthy' : 'unhealthy'}">${h.status||'healthy'}</span>
+            </div>
+          </div>
+          <div class="node-meta">
+            <div class="meta-item">weight<span>${n.weight}</span></div>
+            <div class="meta-item">requests<span>${n.requests||0}</span></div>
+            <div class="meta-item">latency<span>${h.latencyMs||0}ms</span></div>
+            <div class="meta-item">uptime<span>${h.uptime??100}%</span></div>
+            <div class="meta-item">v-slots<span>${n.virtualSlots||0}</span></div>
+          </div>
+          <div class="bar-wrap">
+            <div class="bar-label"><span>Traffic share</span><span>${pct}%</span></div>
+            <div class="bar-track"><div class="bar-fill ${clr}" style="width:${pct}%"></div></div>
+          </div>
+          <div class="bar-wrap" style="margin-top:6px;">
+            <div class="bar-label"><span>Uptime</span><span>${h.uptime??100}%</span></div>
+            <div class="bar-track"><div class="bar-fill green" style="width:${h.uptime??100}%"></div></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ── Render recent requests ──
+  function renderRecent(reqs) {
+    const tbody = document.getElementById('req-tbody');
+    if (!reqs || !reqs.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">No requests yet — try POST /route</td></tr>';
+      return;
+    }
+    tbody.innerHTML = reqs.slice(0,15).map(r => `
+      <tr>
+        <td>${r.ip}</td>
+        <td>${nodeTag(r.node)}</td>
+        <td>${r.latencyMs}ms</td>
+        <td><span class="tag ${r.isFallback?'fallback':'normal'}">${r.isFallback?'FALLBACK':'direct'}</span></td>
+      </tr>
+    `).join('');
+  }
+
+  // ── Render top IPs ──
+  function renderTopIPs(topIPs, total) {
+    const tbody = document.getElementById('top-ips-tbody');
+    if (!topIPs || !topIPs.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">No data yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = topIPs.map((x, i) => {
+      const pct = total ? ((x.count/total)*100).toFixed(1) : 0;
+      return `<tr>
+        <td style="color:var(--muted)">${i+1}</td>
+        <td>${x.key}</td>
+        <td>${x.count}</td>
+        <td style="color:var(--accent)">${pct}%</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── Fetch all data ──
+  async function fetchAll() {
+    try {
+      const [status, metrics, nodesRes] = await Promise.all([
+        get('/status'),
+        get('/metrics'),
+        get('/nodes'),
+      ]);
+
+      const m = metrics.metrics || {};
+      document.getElementById('kpi-total').textContent       = m.totalRequests ?? '—';
+      document.getElementById('kpi-ratelimited').textContent = m.rateLimitedCount ?? '—';
+      document.getElementById('kpi-fallback').textContent    = m.fallbackCount ?? '—';
+      document.getElementById('kpi-ips').textContent         = m.uniqueIPs ?? '—';
+      document.getElementById('kpi-nodes').textContent       = (nodesRes.nodes||[]).length;
+      document.getElementById('kpi-ring').textContent        = nodesRes.ringSize ?? '—';
+      document.getElementById('uptime-display').textContent  = `uptime: ${m.uptime?.human||'—'}`;
+
+      // Merge node info with metrics nodeStats
+      const nodeStats = {};
+      (m.nodeStats||[]).forEach(n => nodeStats[n.node] = n);
+
+      const enriched = (nodesRes.nodes||[]).map(n => ({
+        ...n,
+        requests:   nodeStats[n.name]?.requests   || 0,
+        percentage: nodeStats[n.name]?.percentage || 0,
+      }));
+
+      renderNodes(enriched, status.health || []);
+      renderRecent(m.recentRequests || []);
+      renderTopIPs(m.topIPs || [], m.totalRequests || 0);
+
+    } catch(e) {
+      toast('Failed to fetch data — is the server running?', true);
+    }
+  }
+
+  // ── Actions ──
+  async function sendRoute() {
+    const res = await post('/route');
+    if (res.success) toast(`✅ ${res.ip} → ${res.node}${res.fallback?' (fallback)':''}`);
+    else if (res.error?.includes('Rate')) toast('⛔ Rate limited', true);
+    else toast('❌ ' + (res.error||'Error'), true);
+    fetchAll();
+  }
+
+  async function routeIP() {
+    const ip = document.getElementById('route-ip').value.trim();
+    if (!ip) { toast('Enter an IP address', true); return; }
+    const res = await post('/route', { ip });
+    if (res.success) toast(`✅ ${ip} → ${res.node}${res.fallback?' (fallback)':''}`);
+    else toast('❌ ' + (res.error||JSON.stringify(res)), true);
+    fetchAll();
+  }
+
+  async function simulate() {
+    toast('🔄 Simulating 10 requests…');
+    await post('/simulate', { count: 10 });
+    fetchAll();
+  }
+
+  async function resetMetrics() {
+    await post('/metrics/reset');
+    toast('🗑️ Metrics reset');
+    fetchAll();
+  }
+
+  async function addNode() {
+    const name   = document.getElementById('new-node-name').value.trim();
+    const weight = parseInt(document.getElementById('new-node-weight').value) || 1;
+    if (!name) { toast('Enter a node name', true); return; }
+    const res = await post('/nodes', { name, weight });
+    if (res.success) toast(`➕ ${name} added (weight ${weight})`);
+    else toast('❌ ' + res.error, true);
+    fetchAll();
+  }
+
+  async function removeNode(name) {
+    const res = await del(`/nodes/${encodeURIComponent(name)}`);
+    if (res.success) toast(`🗑️ ${name} removed`);
+    else toast('❌ ' + res.error, true);
+    fetchAll();
+  }
+
+  async function toggleHealth(name, target) {
+    const res = await fetch(`/health/${encodeURIComponent(name)}`, {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ status: target })
+    }).then(r=>r.json());
+    if (res.success) toast(`${target==='unhealthy'?'💀':'🟢'} ${name} → ${target}`);
+    else toast('❌ ' + res.error, true);
+    fetchAll();
+  }
+
+  // ── Auto-refresh every 5s ──
+  fetchAll();
+  setInterval(fetchAll, 5000);
+</script>
+</body>
+</html>
