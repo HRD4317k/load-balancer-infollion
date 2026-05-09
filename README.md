@@ -230,4 +230,4 @@ All requests are written to `logs/requests.log` as JSON lines:
 
 ---
 
-*Built for Infollion Software Developer Intern Task 3.*
+
